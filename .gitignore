@@ -1,3 +1,9 @@
+# Input
 **.txt
 
+# Python
 **/__pycache__/
+
+# Rust
+*.exe
+*.pdb
