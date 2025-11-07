@@ -7,3 +7,7 @@
 # Rust
 *.exe
 *.pdb
+**target/
+
+# Go
+__debug_bin*
