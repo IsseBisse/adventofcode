@@ -8,6 +8,12 @@
 *.exe
 *.pdb
 **target/
+**Cargo.lock
 
 # Go
 __debug_bin*
+
+# Haskell
+*.hi
+*.o
+*.exe
