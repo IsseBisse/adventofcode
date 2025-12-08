@@ -9,7 +9,7 @@ fn read_input(file_path: &str) -> io::Result<Vec<String>> {
 fn part_one() {
     let file_path = "smallInput.txt";
 
-    let rows = parse_input(file_path).unwrap_or_else(|error| {
+    let rows = read_input(file_path).unwrap_or_else(|error| {
         println!("Error reading file: {}", error);
         std::process::exit(1)
     });
@@ -18,7 +18,7 @@ fn part_one() {
 fn part_two() {
     let file_path = "smallInput.txt";
 
-    let rows = parse_input(file_path).unwrap_or_else(|error| {
+    let rows = read_input(file_path).unwrap_or_else(|error| {
         println!("Error reading file: {}", error);
         std::process::exit(1)
     });
