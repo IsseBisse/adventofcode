@@ -14,6 +14,8 @@ struct Point {
     x: i32,
     y: i32,
     z: i32,
+    
+    connections: Vec<Point>
 }
 
 impl Point {
@@ -74,7 +76,7 @@ fn parse(rows: &Vec<String>) -> Vec<Point> {
 }
 
 fn part_one() {
-    let file_path = "input.txt";
+    let file_path = "smallInput.txt";
 
     let rows = read_input(file_path).unwrap_or_else(|error| {
         println!("Error reading file: {}", error);
@@ -93,12 +95,27 @@ fn part_one() {
     let mut last_circuit_idx: usize = 0;
     let mut circuits: HashMap<Point, usize> = HashMap::new();
     for pair in pairs.iter().take(10) {
-        if circuits.contains_key(&pair.p1) {
-            let circuit_idx = circuits.get(&pair.p1).unwrap();
-            circuits.insert(pair.p2, *circuit_idx);
+        if circuits.contains_key(&pair.p1) && circuits.contains_key(&pair.p2) {
+            let new_idx = circuits[&pair.p1];
+            let old_idx = circuits[&pair.p2];
+
+            let old_keys_to_update = circuits
+                .keys()
+                .filter(|&p| circuits[p] == old_idx)
+                .collect::<Vec<&Point>>();
+
+            for point in old_keys_to_update {
+                *circuits.get_mut(point).unwrap() = new_idx;
+            }
+
+        } else if circuits.contains_key(&pair.p1) {
+            let circuit_idx = circuits[&pair.p1];
+            circuits.insert(pair.p2, circuit_idx);
+
         } else if circuits.contains_key(&pair.p2) {
-            let circuit_idx = circuits.get(&pair.p2).unwrap();
-            circuits.insert(pair.p1, *circuit_idx);
+            let circuit_idx = circuits[&pair.p2];
+            circuits.insert(pair.p1, circuit_idx);
+
         } else {
             circuits.insert(pair.p1, last_circuit_idx);
             circuits.insert(pair.p2, last_circuit_idx);
@@ -106,11 +123,13 @@ fn part_one() {
         }
     }
 
-    println!("{:?}", circuits);
-    println!("{}", last_circuit_idx);
+    for (point, idx) in circuits.keys().zip(circuits.values()) {
+        println!("{:?}, {}", point, idx);
+    }
 
-    let mut circuit_sizes = vec![0, last_circuit_idx+1];
+    let mut circuit_sizes: Vec<usize> = vec![0; last_circuit_idx];
     for &circuit_idx in circuits.values() {
+        println!("{}", circuit_idx);
         circuit_sizes[circuit_idx] += 1;
     }
 
