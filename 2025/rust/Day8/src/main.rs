@@ -1,8 +1,10 @@
+use core::num;
 use std::fs;
 use std::io;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 fn read_input(file_path: &str) -> io::Result<Vec<String>> {
     let contents = fs::read_to_string(file_path)?;
@@ -14,8 +16,6 @@ struct Point {
     x: i32,
     y: i32,
     z: i32,
-    
-    connections: Vec<Point>
 }
 
 impl Point {
@@ -76,7 +76,7 @@ fn parse(rows: &Vec<String>) -> Vec<Point> {
 }
 
 fn part_one() {
-    let file_path = "smallInput.txt";
+    let file_path = "input.txt";
 
     let rows = read_input(file_path).unwrap_or_else(|error| {
         println!("Error reading file: {}", error);
@@ -94,18 +94,20 @@ fn part_one() {
 
     let mut last_circuit_idx: usize = 0;
     let mut circuits: HashMap<Point, usize> = HashMap::new();
-    for pair in pairs.iter().take(10) {
+    let num_connections = 1000;
+    for pair in pairs.iter().take(num_connections) {
         if circuits.contains_key(&pair.p1) && circuits.contains_key(&pair.p2) {
             let new_idx = circuits[&pair.p1];
             let old_idx = circuits[&pair.p2];
 
             let old_keys_to_update = circuits
-                .keys()
-                .filter(|&p| circuits[p] == old_idx)
-                .collect::<Vec<&Point>>();
+                .iter()
+                .filter(|&(_, &idx)| idx == old_idx)
+                .map(|(p, _)| *p)
+                .collect::<Vec<Point>>();
 
             for point in old_keys_to_update {
-                *circuits.get_mut(point).unwrap() = new_idx;
+                circuits.insert(point, new_idx);
             }
 
         } else if circuits.contains_key(&pair.p1) {
@@ -124,28 +126,93 @@ fn part_one() {
     }
 
     for (point, idx) in circuits.keys().zip(circuits.values()) {
-        println!("{:?}, {}", point, idx);
+        // println!("{:?}, {}", point, idx);
     }
 
     let mut circuit_sizes: Vec<usize> = vec![0; last_circuit_idx];
     for &circuit_idx in circuits.values() {
-        println!("{}", circuit_idx);
+        // println!("{}", circuit_idx);
         circuit_sizes[circuit_idx] += 1;
     }
+    circuit_sizes.sort();
 
-    println!("{:?}", circuit_sizes);
+    let top_three_size_product = circuit_sizes
+        .iter()
+        .rev()
+        .take(3)
+        .fold(1, |res, size| res * size);
+
+    println!("Top circuits: {}", top_three_size_product);
 }
 
 fn part_two() {
-    let file_path = "smallInput.txt";
+    let file_path = "input.txt";
 
     let rows = read_input(file_path).unwrap_or_else(|error| {
         println!("Error reading file: {}", error);
         std::process::exit(1)
     });
+
+    let points = parse(&rows);
+    let mut connected_points = HashSet::new();
+
+    let mut pairs = BTreeSet::new();
+    for i in 0..points.len() {
+        for j in (i + 1)..points.len() {
+            pairs.insert(PointPair::new(points[i], points[j]));
+        }
+    }
+
+    let mut last_circuit_idx: usize = 0;
+    let mut circuits: HashMap<Point, usize> = HashMap::new();
+    let mut num_circuits: usize = 0;
+
+    for pair in pairs.iter() {
+        connected_points.insert(pair.p1);
+        connected_points.insert(pair.p2);
+
+        if circuits.contains_key(&pair.p1) && circuits.contains_key(&pair.p2) {
+            let new_idx = circuits[&pair.p1];
+            let old_idx = circuits[&pair.p2];
+
+            let old_keys_to_update = circuits
+                .iter()
+                .filter(|&(_, &idx)| idx == old_idx)
+                .map(|(p, _)| *p)
+                .collect::<Vec<Point>>();
+
+            for point in old_keys_to_update {
+                circuits.insert(point, new_idx);
+            }
+
+            if old_idx != new_idx {
+                num_circuits -= 1;
+            }
+
+        } else if circuits.contains_key(&pair.p1) {
+            let circuit_idx = circuits[&pair.p1];
+            circuits.insert(pair.p2, circuit_idx);
+
+        } else if circuits.contains_key(&pair.p2) {
+            let circuit_idx = circuits[&pair.p2];
+            circuits.insert(pair.p1, circuit_idx);
+
+        } else {
+            circuits.insert(pair.p1, last_circuit_idx);
+            circuits.insert(pair.p2, last_circuit_idx);
+            last_circuit_idx += 1;
+            num_circuits += 1;
+        }
+
+        if connected_points.len() == points.len() && num_circuits == 1 {
+            let last_connection_prooduct = pair.p1.x * pair.p2.x; 
+            println!("Last connection product: {}", last_connection_prooduct);
+            break
+        }
+    }
 }
 
 fn main() {
-    part_one();
+    // part_one();
     part_two();
 }
