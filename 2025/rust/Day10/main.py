@@ -1,0 +1,56 @@
+from functools import cache
+from itertools import combinations
+
+def patterns(coeffs: list[tuple[int, ...]]) -> dict[tuple[int, ...], int]:
+    out = {}
+    num_buttons = len(coeffs)
+    num_variables = len(coeffs[0])
+    for pattern_len in range(num_buttons+1):
+        for buttons in combinations(range(num_buttons), pattern_len):
+            pattern = tuple(map(sum, zip((0,) * num_variables, *(coeffs[i] for i in buttons))))
+            if pattern not in out:
+                out[pattern] = pattern_len
+    return out
+
+def solve_single(coeffs: list[tuple[int, ...]], goal: tuple[int, ...]) -> int:
+    pattern_costs = patterns(coeffs)
+
+    with open("patterns.txt") as file:
+        lines = file.readlines()
+
+    pattern_lines = [f"[{', '.join(str(v) for v in key)}] {value}\n" for key, value in pattern_costs.items()]
+
+    for line in lines:
+        if line not in pattern_lines:
+            print(line)
+
+    @cache
+    def solve_single_aux(goal: tuple[int, ...]) -> int:
+        if all(i == 0 for i in goal): return 0
+        answer = 1000000
+        for pattern, pattern_cost in pattern_costs.items():
+            if all(i <= j and i % 2 == j % 2 for i, j in zip(pattern, goal)):
+                new_goal = tuple((j - i)//2 for i, j in zip(pattern, goal))
+                answer = min(answer, pattern_cost + 2 * solve_single_aux(new_goal))
+        return answer
+    return solve_single_aux(goal)
+
+def solve(raw: str):
+    answer = 0
+    lines = raw.splitlines()
+    for I, L in enumerate(lines, 1):
+        _, *coeffs, goal = L.split()
+        goal = tuple(int(i) for i in goal[1:-1].split(","))
+        coeffs = [[int(i) for i in r[1:-1].split(",")] for r in coeffs]
+        coeffs = [tuple(int(i in r) for i in range(len(goal))) for r in coeffs]
+
+        subanswer = solve_single(coeffs, goal)
+        print(f'Line {I}/{len(lines)}: answer {subanswer}')
+        answer += subanswer
+    print(answer)
+
+if __name__ == "__main__":
+    with open("smallInput.txt") as file:
+        raw = file.read()
+
+    solve(raw)
