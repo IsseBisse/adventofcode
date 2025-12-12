@@ -1,6 +1,5 @@
 use std::fs;
 use std::io;
-use fancy_regex::Regex;
 
 fn read_input(file_path: &str) -> io::Result<Vec<String>> {
     let contents = fs::read_to_string(file_path)?;
