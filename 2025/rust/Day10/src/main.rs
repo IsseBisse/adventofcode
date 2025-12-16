@@ -2,6 +2,12 @@ use std::fs;
 use std::io;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::cmp::min;
+use std::ops::Add;
+
+use cached::Cached;
+use cached::proc_macro::cached;
+
 
 fn read_input(file_path: &str) -> io::Result<Vec<String>> {
     let contents = fs::read_to_string(file_path)?;
@@ -144,62 +150,171 @@ fn to_joltage(button: &Vec<u32>, length: u32) -> Vec<u32> {
     joltage
 }
 
-fn add(a: &Vec<u32>, b: &Vec<u32>) -> Vec<u32> {
-    a
-        .iter()
-        .zip(b)
-        .map(|(first, second)| first + second)
-        .collect::<Vec<u32>>()
+// fn add(a: &Vec<u32>, b: &Vec<u32>) -> Vec<u32> {
+//     a
+//         .iter()
+//         .zip(b)
+//         .map(|(first, second)| first + second)
+//         .collect::<Vec<u32>>()
+// }
+
+// fn any_gt(a: &Vec<u32>, b: &Vec<u32>) -> bool {
+//     a
+//         .iter()
+//         .zip(b)
+//         .any(|(first, second)| first > second)
+// }
+
+// fn find_fewest_total_presses_two(target: &Vec<u32>, buttons: &Vec<Vec<u32>>) -> u32 {
+//     let mut current_states = HashSet::new();
+//     let start_state: Vec<u32> = vec![0; target.len()];
+//     current_states.insert(start_state);
+
+//     let mut all_visited_states: HashMap<Vec<u32>, u32> = HashMap::new();
+//     let start_state: Vec<u32> = vec![0; target.len()];
+//     all_visited_states.insert(start_state, 0);
+
+//     let mut presses: u32 = 1;
+//     while current_states.len() > 0 {
+//         let new_states = current_states
+//             .iter()
+//             .flat_map(|state| {
+//                 buttons
+//                     .iter()
+//                     .map(|b| add(state, b))
+//             })
+//             .collect::<Vec<Vec<u32>>>();
+
+//         let mut new_unvisited_states = HashSet::new();
+//         for state in new_states.iter() {
+//             if !all_visited_states.contains_key(state) {
+//                 all_visited_states.insert(state.to_vec(), presses);
+
+//                 if !any_gt(state, target) {
+//                     new_unvisited_states.insert(state.to_vec());
+//                 }
+//             }
+//         }
+
+//         if all_visited_states.contains_key(target) {
+//             // println!("{:?}", all_visited_states);
+//             return all_visited_states[target]
+//         }
+
+//         current_states = new_unvisited_states;
+//         presses += 1;
+//     }
+
+//     0
+// }
+
+fn combinations<T: Clone>(vec: &Vec<T>) -> Vec<Vec<T>> {
+    let n = vec.len();
+    let total = 1 << n; // 2^n combinations
+    
+    (0..total)
+        .map(|i| {
+            vec.iter()
+                .enumerate()
+                .filter(|(j, _)| i & (1 << j) != 0)
+                .map(|(_, item)| item.clone())
+                .collect()
+        })
+        .collect()
 }
 
-fn any_gt(a: &Vec<u32>, b: &Vec<u32>) -> bool {
-    a
-        .iter()
-        .zip(b)
-        .any(|(first, second)| first > second)
-}
+fn elementwise_sum<T>(vectors: &Vec<Vec<T>>) -> Vec<T>
+where 
+    T: Add<Output = T> + Default + Copy
+{
+    let len = vectors[0].len();
+    let mut result = vec![T::default(); len];
 
-fn find_fewest_total_presses_two(target: &Vec<u32>, buttons: &Vec<Vec<u32>>) -> u32 {
-    let mut current_states = HashSet::new();
-    let start_state: Vec<u32> = vec![0; target.len()];
-    current_states.insert(start_state);
-
-    let mut all_visited_states: HashMap<Vec<u32>, u32> = HashMap::new();
-    let start_state: Vec<u32> = vec![0; target.len()];
-    all_visited_states.insert(start_state, 0);
-
-    let mut presses: u32 = 1;
-    while current_states.len() > 0 {
-        let new_states = current_states
-            .iter()
-            .flat_map(|state| {
-                buttons
-                    .iter()
-                    .map(|b| add(state, b))
-            })
-            .collect::<Vec<Vec<u32>>>();
-
-        let mut new_unvisited_states = HashSet::new();
-        for state in new_states.iter() {
-            if !all_visited_states.contains_key(state) {
-                all_visited_states.insert(state.to_vec(), presses);
-
-                if !any_gt(state, target) {
-                    new_unvisited_states.insert(state.to_vec());
-                }
-            }
+    for vector in vectors {
+        for (i, &value) in vector.iter().enumerate() {
+            result[i] = result[i] + value;
         }
-
-        if all_visited_states.contains_key(target) {
-            // println!("{:?}", all_visited_states);
-            return all_visited_states[target]
-        }
-
-        current_states = new_unvisited_states;
-        presses += 1;
     }
 
-    0
+    result
+}
+
+fn pattern_costs(buttons: &Vec<Vec<u32>>) -> HashMap<Vec<i32>, usize> {
+    let mut patterns = HashMap::new();
+
+    let int_buttons = buttons
+        .iter()
+        .map(|b| {
+            b
+                .iter()
+                .map(|v| *v as i32)
+                .collect::<Vec<i32>>()
+        })
+        .collect::<Vec<Vec<i32>>>();
+
+    let button_combinations = combinations(&int_buttons);
+    for combo in button_combinations.iter() {
+        if combo.is_empty() {
+            let empty = vec![0; buttons[0].len()];
+            patterns.insert(empty, 0 as usize);
+        } else {
+            let pattern = elementwise_sum(combo);
+            let cost = combo.len();
+
+            if !patterns.contains_key(&pattern) || patterns[&pattern] > cost {
+                patterns.insert(pattern, cost);
+            }
+        }
+    }
+
+    patterns
+}
+
+#[cached(
+    name = "FEWEST_PRESSES_CACHE",
+    key = "Vec<i32>",
+    convert = r#"{ target.clone() }"#
+)]
+fn fewest_total_presses(target: &Vec<i32>, patterns: &HashMap<Vec<i32>, usize>) -> usize {
+    // println!("{:?}", target);
+
+    let mut answer = 1_000_000;
+    if target.iter().all(|v| *v == 0) {
+        return 0
+    }
+
+    for (pattern, cost) in patterns.iter() {
+        let next_gt_zero = pattern
+            .iter()
+            .zip(target)
+            .all(|(p, t)| (t - p) >= 0);
+        let next_even = pattern
+            .iter()
+            .zip(target)
+            .all(|(p, t)| p % 2 == t % 2);
+        if next_gt_zero && next_even {
+            let new_target = pattern
+                .iter()
+                .zip(target)
+                .map(|(p, t)| (t - p)/2)
+                .collect::<Vec<i32>>();
+            answer = min(answer, cost + 2 * fewest_total_presses(&new_target, patterns));
+        }
+    }
+
+    return answer
+}
+
+fn solve(joltage: &Vec<u32>, buttons: &Vec<Vec<u32>>) -> usize {
+    let patterns = pattern_costs(buttons);
+    FEWEST_PRESSES_CACHE.lock().unwrap().cache_clear();
+
+    let target = joltage
+        .iter()
+        .map(|v| *v as i32)
+        .collect::<Vec<i32>>();
+
+    fewest_total_presses(&target, &patterns)
 }
 
 fn part_two() {
@@ -229,8 +344,12 @@ fn part_two() {
     let total_presses = joltages
         .iter()
         .zip(buttons)
-        .map(|(j, b)| find_fewest_total_presses_two(j, &b))
-        .sum::<u32>();
+        .map(|(j, b)| {
+            let presses = solve(j, &b);
+            println!("{}", presses);
+            presses         
+        })
+        .sum::<usize>();
     println!("Total button presses: {}", total_presses);
 }
 
