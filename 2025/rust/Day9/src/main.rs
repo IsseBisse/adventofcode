@@ -1,4 +1,3 @@
-use std::arch::x86_64;
 use std::collections::HashSet;
 use std::fs;
 use std::io;
@@ -137,15 +136,8 @@ fn print(allowed_points: &HashSet<Point>) {
     }
 }
 
-fn add_line(mut y_intervals: &HashMap<usize, HashSet<usize>>, start: Point, end: Point) {
-    if start.y == end.y {
-        y_intervals.entry(start.y as usize).or_default().insert(start.x as usize);
-        y_intervals.entry(start.y as usize).or_default().insert(end.x as usize);
-    } else {
-        for point in start.line(&end) {
-            y_intervals.entry(point.y as usize).or_default().insert(point.x as usize);
-        }
-    }
+fn is_inside(pair: PointPair, perimeter: HashSet<Point>) -> bool {
+    // TODO: Check if any part of the rect (from point pair) except the edge, crosses the perimeter => the rect is not inside
 }
 
 fn part_two() {
@@ -157,23 +149,35 @@ fn part_two() {
     });
 
     let points = parse(&rows);
-    let mut y_intervals: HashMap<usize, HashSet<usize>> = HashMap::new();
-    for window in points.windows(2) {
-        let start = window[0];
-        let end = window[1];
+    // TODO: Use HashMap<x, Vec<y>> for efficiency
+    let mut perimeter = HashSet::new();
+    for w in points.windows(2) {
+        let first = w[0];
+        let second = w[1];
 
-        add_line(y_intervals, start, end);
+        let line = first.line(&second);
+        for p in line {
+            perimeter.insert(p);
+        }
     }
-    add_line(y_intervals, points[0], points[points.len()-1]);
 
-    println!("{:?}", y_intervals);
-
-    // for point in points[0].line(&points[points.len()-1]) {
-    //     allowed_points.insert(point);
-    // }
+    let last_line = points[0].line(&points[points.len()-1]);
+    for p in last_line{
+        perimeter.insert(p);
+    }
     
-    // print(&allowed_points);
+    print(&perimeter);
 
+    let mut pairs = BTreeSet::new();
+    for i in 0..points.len() {
+        for j in (i + 1)..points.len() {
+            pairs.insert(PointPair::new(points[i], points[j]));
+        }
+    }
+
+    for pair in pairs.iter().rev() {
+        println!("{:?} {:?} {}", pair.p1, pair.p2);
+    }
     // let mut candidates = vec![Point { x: points[0].x + 1, y: points[0].y + 1}];
     // let mut laps = 0;
     // while candidates.len() > 0 {
