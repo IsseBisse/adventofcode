@@ -120,24 +120,46 @@ fn part_one() {
         }
 }
 
-fn print(allowed_points: &HashSet<Point>) {
+fn print(allowed_points: &HashMap<i64, HashSet<i64>>) {
     for y in 0..15 {
         let line: String = (0..15)
             .map(|x| {
-                let p = Point { x: x, y: y };
-                if allowed_points.contains(&p) {
-                    '#'
+                if allowed_points.contains_key(&y) {
+                    if allowed_points[&y].contains(&x) {
+                        '#'
+                    } else {
+                        '.'
+                    }
                 } else {
                     '.'
                 }
+
             })
             .collect();
         println!("{}", line);
     }
 }
 
-fn is_inside(pair: PointPair, perimeter: HashSet<Point>) -> bool {
-    // TODO: Check if any part of the rect (from point pair) except the edge, crosses the perimeter => the rect is not inside
+fn is_inside(pair: &PointPair, perimeter: &HashMap<i64, HashSet<i64>>) -> bool {
+    let y_start = cmp::min(pair.p1.y, pair.p2.y) + 1;
+    let y_end = cmp::max(pair.p1.y, pair.p2.y);
+    let x_start = cmp::min(pair.p1.x, pair.p2.x) + 1;
+    let x_end = cmp::max(pair.p1.x, pair.p2.x);
+
+    for y in y_start..y_end {
+        if !perimeter.contains_key(&y) {
+            continue;
+        }
+
+        for &x in perimeter[&y].iter() {
+            if x_start <= x && x_end >= x {
+                println!("({}, {}) on perimeter", x, y);
+                return false
+            }
+        }
+    }
+    
+    true
 }
 
 fn part_two() {
@@ -150,22 +172,22 @@ fn part_two() {
 
     let points = parse(&rows);
     // TODO: Use HashMap<x, Vec<y>> for efficiency
-    let mut perimeter = HashSet::new();
+    let mut perimeter: HashMap<i64, HashSet<i64>> = HashMap::new();
     for w in points.windows(2) {
         let first = w[0];
         let second = w[1];
 
         let line = first.line(&second);
         for p in line {
-            perimeter.insert(p);
+            perimeter.entry(p.y).or_default().insert(p.x);
         }
     }
 
     let last_line = points[0].line(&points[points.len()-1]);
     for p in last_line{
-        perimeter.insert(p);
+        perimeter.entry(p.y).or_default().insert(p.x);
     }
-    
+
     print(&perimeter);
 
     let mut pairs = BTreeSet::new();
@@ -176,7 +198,12 @@ fn part_two() {
     }
 
     for pair in pairs.iter().rev() {
-        println!("{:?} {:?} {}", pair.p1, pair.p2);
+        println!("{:?} {:?} {}", pair.p1, pair.p2, pair.area);
+       
+        if is_inside(pair, &perimeter) {
+            // println!("{:?} {:?} {}", pair.p1, pair.p2, pair.area);
+            println!("Inside")        
+        }
     }
     // let mut candidates = vec![Point { x: points[0].x + 1, y: points[0].y + 1}];
     // let mut laps = 0;
